@@ -1,0 +1,41 @@
+Bootstrap: docker
+From: continuumio/miniconda3
+
+%labels
+    Author Gavin
+    Version v1.0
+
+%files
+    environment.yml /code/environment.yml
+    endpoint.py /code/endpoint.py
+    admet.py /code/admet.py
+    entrypoint.sh /code/entrypoint.sh
+
+%post
+    apt-get update && apt-get install -y git
+
+    # Create conda env
+    conda env create -f /code/environment.yml
+
+    # Clean up
+    conda clean --all -y
+
+    # Ensure the env is activated on each shell start
+    echo "source activate admet_api" > /environment.sh
+    chmod +x /environment.sh
+    chmod +x /code/entrypoint.sh
+
+%environment
+    export PATH="/opt/conda/bin:$PATH"
+    source /environment.sh
+    export PYTHONPATH=/code
+    export LC_ALL=C.UTF-8
+    export LANG=C.UTF-8
+    export EXPOSE=8000
+    export OMP_NUM_THREADS=8
+    export MKL_NUM_THREADS=8
+    export NUMEXPR_NUM_THREADS=8 
+
+%runscript
+    source /environment.sh
+    bash /code/entrypoint.sh "$@"
