@@ -49,8 +49,8 @@ Open the interactive docs at http://localhost:8000/docs.
 
 ## API Endpoints
 
-### GET `/`
-Returns a short service message.
+### GET `/health`
+Returns the health of the endpoint.
 
 ### POST `/smi/`
 Predict ADME properties for a single SMILES string. Request body:
