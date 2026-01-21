@@ -8,6 +8,11 @@ import os
 class Request(BaseModel):
     smi: str
 
+class HealthResponse(BaseModel):
+    """Response model for health check endpoint."""
+    status: str
+    message: str
+
 QUEUE_COUNT = os.getenv("QUEUE_COUNT", 1);
 
 app = FastAPI()
@@ -20,9 +25,18 @@ async def start():
     for _ in range(QUEUE_COUNT):
         model_pool.put_nowait(Admet())
 
-@app.get("/")
-async def root():
-    return {"message": "Chopra Admet AI microservice"}
+@app.get("/health", response_model=HealthResponse)
+async def health_check() -> HealthResponse:
+    """
+    Health check endpoint.
+
+    Returns:
+        HealthResponse with service status
+    """
+    return HealthResponse(
+        status="healthy",
+        message="ADMEThyst microservice is running"
+    )
 
 @app.post("/smi/")
 async def smi_request(req: Request):
