@@ -31,7 +31,7 @@ From: continuumio/miniconda3
     export PYTHONPATH=/code
     export LC_ALL=C.UTF-8
     export LANG=C.UTF-8
-    export EXPOSE=8000
+    export PORT=8000
     export OMP_NUM_THREADS=8
     export MKL_NUM_THREADS=8
     export NUMEXPR_NUM_THREADS=8 
