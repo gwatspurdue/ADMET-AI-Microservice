@@ -5,7 +5,7 @@ source /environment.sh
 conda activate admet_api
 
 # Run the app through fastapi to expose the ports
-fastapi dev /code/endpoint.py --host 0.0.0.0 --port "$EXPOSE"
+fastapi dev /code/endpoint.py --host 0.0.0.0 --port "$PORT"
 
 
 #example of working apptainer commands-> 
