@@ -29,18 +29,18 @@ Build the container from the included definition file:
 singularity build admet_ai.sif admet_ai.def
 ```
 
-Run the container. The container defines EXPOSE=8000 by default; to override the exposed port set the EXPOSE environment variable when running the container:
+Run the container. The container defines PORT=8000 by default; to override the exposed port set the PORT environment variable when running the container:
 ```bash
-singularity exec --env EXPOSE=8001 admet_ai.sif
+singularity exec --env PORT=8001 admet_ai.sif
 ```
 
-Inside the container the entrypoint will start the FastAPI server and bind to 0.0.0.0 on the port given by EXPOSE.
+Inside the container the entrypoint will start the FastAPI server and bind to 0.0.0.0 on the port given by PORT.
 
 ## Running the API Locally
 
 Start the FastAPI server with uvicorn (recommended for local development):
 ```bash
-EXPOSE=8000 python3 -m uvicorn endpoint:app --host 0.0.0.0 --port "$EXPOSE" --reload
+PORT=8000 python3 -m uvicorn endpoint:app --host 0.0.0.0 --port "$PORT" --reload
 ```
 
 The API will be available at http://localhost:8000 (or the value of EXPOSE).
