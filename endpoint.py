@@ -1,9 +1,10 @@
 from fastapi import FastAPI, UploadFile, File
-from admet import Admet
+from admet import Admet, Admet_Return
 from pydantic import BaseModel
 import asyncio
 from asyncio import Queue
 import os
+from typing import List, Optional
 
 class Request(BaseModel):
     smi: str
@@ -13,7 +14,21 @@ class HealthResponse(BaseModel):
     status: str
     message: str
 
-QUEUE_COUNT = os.getenv("QUEUE_COUNT", 1);
+class Response(BaseModel):
+    """Response model for SMILES prediction endpoint."""
+    smiles: str
+    status: str
+    results: Admet_Return
+    errors: Optional[str] = None
+
+class BulkResponse(BaseModel):
+    """Response model for bulk SMILES prediction endpoint."""
+    filename: str
+    requested_properties: Optional[List[str]] = None
+    total_smiles: int
+    results: List[Response]
+
+QUEUE_COUNT = int(os.getenv("QUEUE_COUNT", 1));
 
 app = FastAPI()
 model_pool: Queue #keep model usage thread safe with a queue
@@ -45,7 +60,11 @@ async def smi_request(req: Request):
         model.run(req.smi);
     finally:
         await model_pool.put(model)
-    return model.as_obj()
+    return Response(
+        smiles=req.smi,
+        status="success",
+        results=model.as_obj()
+    )
 
 @app.post("/upload_smi/")
 async def upload_smi(file: UploadFile = File(...)):
@@ -61,6 +80,15 @@ async def upload_smi(file: UploadFile = File(...)):
     finally:
         await model_pool.put(model)
 
-    return outputs
-
-# use rdkit to make mol file
+    return BulkResponse(
+        filename=file.filename,
+        requested_properties=smiles_list,
+        total_smiles=len(smiles_list),
+        results=[
+            Response(
+                smiles=smi,
+                status="success",
+                results=output
+            ) for smi, output in zip(smiles_list, outputs)
+        ]
+    )
