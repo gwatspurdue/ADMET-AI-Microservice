@@ -52,18 +52,18 @@ Open the interactive docs at http://localhost:8000/docs.
 ### GET `/health`
 Returns the health of the endpoint.
 
-### POST `/smi/`
+### POST `/smi`
 Predict ADME properties for a single SMILES string. Request body:
 ```json
 {
-  "smi": "CCO"
+  "smiles": "CCO"
 }
 ```
 
-### POST `/upload_smi/`
+### POST `/upload_smi`
 Upload a plain text file containing one SMILES per line. Example using curl:
 ```bash
-curl -F "file=@compounds.txt" localhost:8000/upload_smi/
+curl -F "file=@compounds.txt" localhost:8000/upload_smi
 ```
 
 ## Available Properties
