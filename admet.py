@@ -81,7 +81,21 @@ ALL_PROPS = [
 ]
 
 # ------------------------------------------------------------------------
-# 2. CREATE Pydantic MODEL PROGRAMMATICALLY
+# 2. CREATE PROPERTY NAME MAPPING
+# ------------------------------------------------------------------------
+
+# Create a mapping from friendly names (lowercase) to full property IDs
+PROPERTY_NAME_MAP = {}
+for pid, friendly_name, _ in ALL_PROPS:
+    # Map full ID
+    PROPERTY_NAME_MAP[pid] = pid
+    # Map lowercase version of ID
+    PROPERTY_NAME_MAP[pid.lower()] = pid
+    # Map friendly name lowercase
+    PROPERTY_NAME_MAP[friendly_name.lower().replace(" ", "_")] = pid
+
+# ------------------------------------------------------------------------
+# 3. CREATE Pydantic MODEL PROGRAMMATICALLY
 # ------------------------------------------------------------------------
 
 def make_pydantic_model():
@@ -99,7 +113,7 @@ def make_pydantic_model():
 Admet_Return = make_pydantic_model()
 
 # ------------------------------------------------------------------------
-# 3. CREATE Admet() CLASS WITH GETTERS + as_obj()
+# 4. CREATE Admet() CLASS WITH GETTERS + as_obj()
 # ------------------------------------------------------------------------
 
 class Admet:
@@ -121,11 +135,14 @@ class Admet:
     def __getattr__(self, name):
         """
         Enables functions like: admet.get_logP(), admet.get_hERG(), etc.
+        Supports both full property IDs and friendly names.
         """
         if name.startswith("get_"):
             prop = name[4:]  # remove "get_"
-            if prop in self.preds:
-                return lambda p=prop: self.preds[p]
+            # Map the property name to the full ID
+            full_prop_id = PROPERTY_NAME_MAP.get(prop)
+            if full_prop_id and full_prop_id in self.preds:
+                return lambda p=full_prop_id: self.preds[p]
         raise AttributeError(name)
 
     def as_obj(self) -> Admet_Return:

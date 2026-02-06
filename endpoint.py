@@ -1,5 +1,5 @@
-from fastapi import FastAPI, UploadFile, File
-from admet import Admet, Admet_Return, ALL_PROPS
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from admet import Admet, Admet_Return, ALL_PROPS, PROPERTY_NAME_MAP
 from pydantic import BaseModel
 import asyncio
 from asyncio import Queue
@@ -36,10 +36,32 @@ class BulkResponse(BaseModel):
     total_smiles: int
     results: List[Response]
 
-QUEUE_COUNT = int(os.getenv("QUEUE_COUNT", 1));
+QUEUE_COUNT = int(os.getenv("QUEUE_COUNT", 1))
 
 app = FastAPI()
 model_pool: Queue #keep model usage thread safe with a queue
+
+def get_valid_properties(requested_properties: Optional[List[str]]) -> List[str]:
+    """
+    Validate and normalize requested properties.
+    If None, returns all available properties.
+    Raises HTTPException if invalid properties are requested.
+    """
+    if requested_properties is None:
+        return [prop[0] for prop in ALL_PROPS]
+    
+    valid_props = []
+    for prop in requested_properties:
+        # Try to map the property name to the full ID
+        full_prop_id = PROPERTY_NAME_MAP.get(prop)
+        if not full_prop_id:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid property: '{prop}'. Available properties: {list(PROPERTY_NAME_MAP.keys())}"
+            )
+        valid_props.append(prop)
+    
+    return valid_props
 
 @app.on_event("startup")
 async def start():
@@ -64,8 +86,8 @@ async def health_check() -> HealthResponse:
 @app.post("/smi")
 async def smi_request(req: Request):
     model = await model_pool.get()
-    properties_to_use = req.property if req.property else [prop[0] for prop in ALL_PROPS]
     try:
+        properties_to_use = get_valid_properties(req.property)
         model.run(req.smiles)
         results = {}
         for prop in properties_to_use:
@@ -92,8 +114,8 @@ async def upload_smi(file: UploadFile = File(...), property: Optional[List[str]]
 
     outputs = []
     model = await model_pool.get()
-    properties_to_use = property if property else [prop[0] for prop in ALL_PROPS]
     try:
+        properties_to_use = get_valid_properties(property)
         for smi in smiles_list:
             model.run(smi)
             results = {}
@@ -110,13 +132,13 @@ async def upload_smi(file: UploadFile = File(...), property: Optional[List[str]]
                         status="error",
                         error=str(e)
                     )
-        outputs.append(results)
+            outputs.append(results)
     finally:
         await model_pool.put(model)
 
     return BulkResponse(
         filename=file.filename,
-        requested_properties=smiles_list,
+        requested_properties=property,
         total_smiles=len(smiles_list),
         results=[
             Response(
