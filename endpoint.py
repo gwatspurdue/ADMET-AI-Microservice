@@ -27,7 +27,7 @@ class Response(BaseModel):
     smiles: str
     status: str
     results: Dict[str, PropertyResult]
-    errors: Optional[str] = None
+    error: Optional[str] = None
 
 class BulkResponse(BaseModel):
     """Response model for bulk SMILES prediction endpoint."""
@@ -41,27 +41,25 @@ QUEUE_COUNT = int(os.getenv("QUEUE_COUNT", 1))
 app = FastAPI()
 model_pool: Queue #keep model usage thread safe with a queue
 
-def get_valid_properties(requested_properties: Optional[List[str]]) -> List[str]:
+def get_valid_properties(requested_properties: Optional[List[str]]) -> tuple[List[str], Optional[str]]:
     """
     Validate and normalize requested properties.
     If None, returns all available properties.
-    Raises HTTPException if invalid properties are requested.
+    Returns a tuple of (properties_list, error_message).
     """
     if requested_properties is None:
-        return [prop[0] for prop in ALL_PROPS]
+        return [prop[0] for prop in ALL_PROPS], None
     
     valid_props = []
     for prop in requested_properties:
         # Try to map the property name to the full ID
         full_prop_id = PROPERTY_NAME_MAP.get(prop)
         if not full_prop_id:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid property: '{prop}'. Available properties: {list(PROPERTY_NAME_MAP.keys())}"
-            )
-        valid_props.append(prop)
+            error = f"Invalid property: '{prop}'. Available properties: {list(PROPERTY_NAME_MAP.keys())}"
+            return [], error
+        valid_props.append(full_prop_id)
     
-    return valid_props
+    return valid_props, None
 
 @app.on_event("startup")
 async def start():
@@ -80,14 +78,16 @@ async def health_check() -> HealthResponse:
     """
     return HealthResponse(
         status="healthy",
-        message="ADMEThyst microservice is running"
+        message="ADMET-AI microservice is running"
     )
 
 @app.post("/smi")
 async def smi_request(req: Request):
     model = await model_pool.get()
     try:
-        properties_to_use = get_valid_properties(req.property)
+        properties_to_use, error = get_valid_properties(req.property)
+        if error:
+            return Response(smiles=req.smiles, status='error', results={}, errors=error)
         model.run(req.smiles)
         results = {}
         for prop in properties_to_use:
@@ -115,7 +115,14 @@ async def upload_smi(file: UploadFile = File(...), property: Optional[List[str]]
     outputs = []
     model = await model_pool.get()
     try:
-        properties_to_use = get_valid_properties(property)
+        properties_to_use, error = get_valid_properties(property)
+        if error:
+            return BulkResponse(
+                filename=file.filename,
+                requested_properties=property,
+                total_smiles=len(smiles_list),
+                results=[]
+            )
         for smi in smiles_list:
             model.run(smi)
             results = {}
