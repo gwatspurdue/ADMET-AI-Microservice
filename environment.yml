@@ -141,4 +141,3 @@ dependencies:
       - wrapt==1.17.2
       - xarray==2025.6.1
       - xgboost==0.81
-prefix: /home/nberney/.conda/envs/ml_moo
